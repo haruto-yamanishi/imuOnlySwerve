@@ -23,12 +23,6 @@ public final class Constants {
     public static final String kBotPoseEntry = "botpose_wpiblue";
   }
 
-  public static class ExperimentConstants {
-    public static final String kProjectName = "imuOnlySwerve";
-    public static final double kExperimentDurationSeconds = 12.0;
-    public static final double kSimulatedCameraPeriodSeconds = 0.10;
-  }
-
   public static class OperatorConstants {
     public static final int kDriverControllerPort = 0;
   }

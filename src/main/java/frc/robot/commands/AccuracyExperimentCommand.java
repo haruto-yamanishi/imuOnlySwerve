@@ -8,7 +8,8 @@ import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Constants.ExperimentConstants;
+import frc.robot.experiment.ExperimentConstants;
+import frc.robot.experiment.ExperimentConstants.MotionSegment;
 import frc.robot.subsystems.DriveSubsystem;
 import java.io.File;
 import java.io.FileWriter;
@@ -34,7 +35,7 @@ public class AccuracyExperimentCommand extends Command {
 
   @Override
   public void initialize() {
-    driveSubsystem.resetPose(Pose2d.kZero);
+    driveSubsystem.resetPose(ExperimentConstants.START_POSE);
     timer.restart();
     lastSimulatedVisionTimeSeconds = -1.0;
     translationErrorSumSquares = 0.0;
@@ -48,8 +49,9 @@ public class AccuracyExperimentCommand extends Command {
   @Override
   public void execute() {
     double timeSeconds = timer.get();
-    DriveRequest request = getDriveRequest(timeSeconds);
-    driveSubsystem.drive(request.xSpeed(), request.ySpeed(), request.rotationSpeed());
+    MotionSegment segment = ExperimentConstants.motionSegmentAt(timeSeconds);
+    driveSubsystem.driveRobotRelative(
+        segment.xSpeed(), segment.ySpeed(), segment.rotationSpeed());
 
     if (RobotBase.isSimulation()) {
       publishSimulatedVisionIfReady(timeSeconds);
@@ -59,7 +61,7 @@ public class AccuracyExperimentCommand extends Command {
     Optional<Pose2d> groundTruthPose = driveSubsystem.getSimulationGroundTruthPose();
     groundTruthPose.ifPresent(truth -> recordSample(timeSeconds, estimatedPose, truth));
 
-    SmartDashboard.putNumber(ExperimentConstants.kProjectName + "/ExperimentTimeSec", timeSeconds);
+    SmartDashboard.putNumber(ExperimentConstants.PROJECT_NAME + "/ExperimentTimeSec", timeSeconds);
   }
 
   @Override
@@ -75,26 +77,12 @@ public class AccuracyExperimentCommand extends Command {
 
   @Override
   public boolean isFinished() {
-    return timer.hasElapsed(ExperimentConstants.kExperimentDurationSeconds);
-  }
-
-  private DriveRequest getDriveRequest(double timeSeconds) {
-    if (timeSeconds < 1.0) {
-      return new DriveRequest(0.0, 0.0, 0.0);
-    } else if (timeSeconds < 3.5) {
-      return new DriveRequest(0.20, 0.0, 0.0);
-    } else if (timeSeconds < 6.0) {
-      return new DriveRequest(0.0, 0.18, 0.0);
-    } else if (timeSeconds < 8.0) {
-      return new DriveRequest(0.0, 0.0, 0.18);
-    } else if (timeSeconds < 10.5) {
-      return new DriveRequest(-0.16, -0.12, 0.0);
-    }
-    return new DriveRequest(0.0, 0.0, 0.0);
+    return timer.hasElapsed(ExperimentConstants.EXPERIMENT_DURATION_SECONDS);
   }
 
   private void publishSimulatedVisionIfReady(double timeSeconds) {
-    if (timeSeconds - lastSimulatedVisionTimeSeconds < ExperimentConstants.kSimulatedCameraPeriodSeconds) {
+    if (timeSeconds - lastSimulatedVisionTimeSeconds
+        < ExperimentConstants.SIMULATED_CAMERA_PERIOD_SECONDS) {
       return;
     }
 
@@ -124,7 +112,7 @@ public class AccuracyExperimentCommand extends Command {
     double rmsTranslationErrorMeters = Math.sqrt(translationErrorSumSquares / samples);
     double rmsHeadingErrorDegrees = Math.toDegrees(Math.sqrt(headingErrorSumSquares / samples));
 
-    String prefix = ExperimentConstants.kProjectName + "/Accuracy";
+    String prefix = ExperimentConstants.PROJECT_NAME + "/Accuracy";
     SmartDashboard.putNumber(prefix + "/TranslationErrorMeters", translationErrorMeters);
     SmartDashboard.putNumber(prefix + "/HeadingErrorDegrees", headingErrorDegrees);
     SmartDashboard.putNumber(prefix + "/RmsTranslationErrorMeters", rmsTranslationErrorMeters);
@@ -152,17 +140,15 @@ public class AccuracyExperimentCommand extends Command {
       File csvFile =
           new File(
               Filesystem.getOperatingDirectory(),
-              ExperimentConstants.kProjectName + "-pose-accuracy.csv");
+              ExperimentConstants.PROJECT_NAME + "-pose-accuracy.csv");
       csvWriter = new PrintWriter(new FileWriter(csvFile));
       csvWriter.println(
           "timeSec,estimatedX,estimatedY,estimatedHeadingDeg,truthX,truthY,truthHeadingDeg,translationErrorMeters,headingErrorDegrees");
       SmartDashboard.putString(
-          ExperimentConstants.kProjectName + "/Accuracy/CsvPath", csvFile.getAbsolutePath());
+          ExperimentConstants.PROJECT_NAME + "/Accuracy/CsvPath", csvFile.getAbsolutePath());
     } catch (IOException exception) {
       DriverStation.reportWarning("Could not open pose accuracy CSV: " + exception.getMessage(), false);
       csvWriter = null;
     }
   }
-
-  private record DriveRequest(double xSpeed, double ySpeed, double rotationSpeed) {}
 }

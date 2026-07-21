@@ -39,18 +39,33 @@ public class DriveSubsystem extends SubsystemBase {
     publishPose("ImuOnly", estimatedPose);
   }
 
+  /** Field-relative manual drive, preserving the existing teleop behavior. */
   public void drive(double xSpeed, double ySpeed, double rotationSpeed) {
+    driveNormalized(xSpeed, ySpeed, rotationSpeed, true, false);
+  }
+
+  /** Robot-relative open-loop experiment drive, independent of pose estimates and the IMU. */
+  public void driveRobotRelative(double xSpeed, double ySpeed, double rotationSpeed) {
+    driveNormalized(xSpeed, ySpeed, rotationSpeed, false, true);
+  }
+
+  private void driveNormalized(
+      double xSpeed,
+      double ySpeed,
+      double rotationSpeed,
+      boolean fieldRelative,
+      boolean isOpenLoop) {
     swerveDrive.drive(
         new Translation2d(
             xSpeed * DriveConstants.kMaxSpeedMetersPerSecond,
             ySpeed * DriveConstants.kMaxSpeedMetersPerSecond),
         rotationSpeed * swerveDrive.getMaximumChassisAngularVelocity(),
-        true,
-        false);
+        fieldRelative,
+        isOpenLoop);
   }
 
   public void stop() {
-    drive(0.0, 0.0, 0.0);
+    driveRobotRelative(0.0, 0.0, 0.0);
   }
 
   public void resetPose(Pose2d pose) {
